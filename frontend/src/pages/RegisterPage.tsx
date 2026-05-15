@@ -29,7 +29,7 @@ const RegisterPage = () => {
       const response = await api.post('/auth/register', data);
       setUser(response.data.user);
       setAccessToken(response.data.accessToken);
-      toast.success('Workspace created successfully!');
+      toast.success('Account created successfully!');
       navigate('/');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Registration failed');

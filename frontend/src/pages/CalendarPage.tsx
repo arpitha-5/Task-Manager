@@ -13,24 +13,24 @@ const priorityDots: Record<string, string> = {
 };
 
 const CalendarPage = () => {
-  const { currentWorkspace } = useAuthStore();
+  const { currentProject } = useAuthStore();
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
-    if (currentWorkspace) {
+    if (currentProject) {
       fetchTasks();
     } else {
       setIsLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentProject]);
 
   const fetchTasks = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get(`/tasks/workspace/${currentWorkspace!._id}`);
+      const res = await api.get(`/tasks?projectId=${currentProject!._id}`);
       setTasks(res.data.data);
     } catch (err) {
       console.error('Failed to fetch tasks', err);
@@ -101,13 +101,14 @@ const CalendarPage = () => {
     </div>
   );
 
-  if (!currentWorkspace) return (
+  if (!currentProject) return (
     <div className="h-full flex flex-col items-center justify-center space-y-6 text-center max-w-md mx-auto">
       <Calendar size={40} className="text-slate-500" />
-      <h2 className="text-3xl font-black">No Workspace Selected</h2>
-      <p className="text-slate-500 font-medium">Select a workspace to view calendar.</p>
+      <h2 className="text-3xl font-black">No Project Selected</h2>
+      <p className="text-slate-500 font-medium">Select a project to view calendar.</p>
     </div>
   );
+
 
   return (
     <div className="space-y-6 pb-20">

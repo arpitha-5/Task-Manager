@@ -1,28 +1,21 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import Project from '../models/Project';
-import Workspace from '../models/Workspace';
 
 // @desc    Create project
 // @route   POST /api/projects
 // @access  Private
 export const createProject = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, workspaceId, category, deadline, color } = req.body;
-
-    const workspace = await Workspace.findById(workspaceId);
-    if (!workspace) {
-      return res.status(404).json({ success: false, message: 'Workspace not found' });
-    }
+    const { name, description, category, deadline, color } = req.body;
 
     const project = await Project.create({
       name,
       description,
-      workspace: workspaceId,
       owner: req.user!._id,
       category,
-      deadline,
-      color,
+      deadline: deadline || new Date(),
+      color: color || '#3b82f6',
       members: [req.user!._id]
     });
 
@@ -32,12 +25,18 @@ export const createProject = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// @desc    Get all projects in a workspace
-// @route   GET /api/projects/workspace/:workspaceId
+// @desc    Get all projects for current user
+// @route   GET /api/projects
 // @access  Private
 export const getProjects = async (req: AuthRequest, res: Response) => {
   try {
-    const projects = await Project.find({ workspace: req.params.workspaceId });
+    const projects = await Project.find({
+      $or: [
+        { owner: req.user!._id },
+        { members: req.user!._id }
+      ]
+    }).populate('owner', 'name email profilePicture');
+    
     res.status(200).json({ success: true, count: projects.length, data: projects });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -49,7 +48,10 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const getProject = async (req: AuthRequest, res: Response) => {
   try {
-    const project = await Project.findById(req.params.id).populate('owner', 'name email profilePicture');
+    const project = await Project.findById(req.params.id)
+      .populate('owner', 'name email profilePicture')
+      .populate('members', 'name email profilePicture');
+      
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }

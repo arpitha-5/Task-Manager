@@ -22,7 +22,7 @@ const NotificationBell = () => {
 
   useEffect(() => {
     if (socket && user) {
-      socket.emit('join_notifications', user._id);
+      socket.emit('join', user._id);
       
       socket.on('new_notification', (notification) => {
         setNotifications(prev => [notification, ...prev]);

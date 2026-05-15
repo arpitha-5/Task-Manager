@@ -25,15 +25,7 @@ export const register = async (req: Request, res: Response) => {
       password
     });
 
-    // Create initial personal workspace
-    const workspace = await Workspace.create({
-      name: `${name}'s Workspace`,
-      owner: user._id,
-      members: [{ user: user._id, role: 'owner' }]
-    });
-
-    user.workspaces.push(workspace._id as any);
-    user.currentWorkspace = workspace._id as any;
+    // Save user
     await user.save();
 
     sendTokenResponse(user, 201, res);

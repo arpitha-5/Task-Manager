@@ -37,8 +37,6 @@ export const sendTokenResponse = (user: IUser, statusCode: number, res: Response
         email: user.email,
         role: user.role,
         profilePicture: user.profilePicture,
-        workspaces: user.workspaces,
-        currentWorkspace: user.currentWorkspace
       }
     });
 };

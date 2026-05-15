@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IConversation extends Document {
   participants: mongoose.Types.ObjectId[];
-  workspace: mongoose.Types.ObjectId;
+  project: mongoose.Types.ObjectId;
   name?: string;
   isGroup: boolean;
   lastMessage?: {
@@ -18,9 +18,9 @@ const ConversationSchema: Schema = new Schema({
     ref: 'User',
     required: true,
   }],
-  workspace: {
+  project: {
     type: Schema.Types.ObjectId,
-    ref: 'Workspace',
+    ref: 'Project',
     required: true,
   },
   name: String,

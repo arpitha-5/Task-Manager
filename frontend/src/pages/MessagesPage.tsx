@@ -7,7 +7,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 
 const MessagesPage = () => {
-  const { user, currentWorkspace } = useAuthStore();
+  const { user, currentProject } = useAuthStore();
   const { socket } = useSocketStore();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConv, setActiveConv] = useState<any>(null);
@@ -22,19 +22,19 @@ const MessagesPage = () => {
   const typingTimeout = useRef<any>(null);
 
   useEffect(() => {
-    if (currentWorkspace) {
+    if (currentProject) {
       fetchConversations();
       fetchMembers();
     } else {
       setIsLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentProject]);
 
   // Socket listeners
   useEffect(() => {
     if (!socket || !activeConv) return;
 
-    socket.emit('join_conversation', activeConv._id);
+    socket.emit('join', activeConv._id);
 
     const handleNewMessage = (msg: any) => {
       if (msg.conversation === activeConv._id) {
@@ -74,7 +74,7 @@ const MessagesPage = () => {
   const fetchConversations = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get(`/messages/conversations/${currentWorkspace!._id}`);
+      const res = await api.get(`/messages/conversations/${currentProject!._id}`);
       setConversations(res.data.data);
     } catch (err) {
       console.error('Failed to fetch conversations', err);
@@ -85,7 +85,7 @@ const MessagesPage = () => {
 
   const fetchMembers = async () => {
     try {
-      const res = await api.get(`/messages/members/${currentWorkspace!._id}`);
+      const res = await api.get(`/messages/members/${currentProject!._id}`);
       setMembers(res.data.data);
     } catch (err) {
       console.error('Failed to fetch members', err);
@@ -135,7 +135,7 @@ const MessagesPage = () => {
     try {
       const res = await api.post('/messages/conversation', {
         participantId: member._id,
-        workspaceId: currentWorkspace!._id,
+        projectId: currentProject!._id,
       });
       const conv = res.data.data;
       setConversations(prev => {
@@ -167,13 +167,14 @@ const MessagesPage = () => {
     </div>
   );
 
-  if (!currentWorkspace) return (
+  if (!currentProject) return (
     <div className="h-full flex flex-col items-center justify-center space-y-6 text-center max-w-md mx-auto">
       <MessageSquare size={40} className="text-slate-500" />
-      <h2 className="text-3xl font-black">No Workspace Selected</h2>
-      <p className="text-slate-500 font-medium">Select a workspace to start messaging.</p>
+      <h2 className="text-3xl font-black">No Project Selected</h2>
+      <p className="text-slate-500 font-medium">Select a project to start messaging.</p>
     </div>
   );
+
 
   return (
     <div className="h-full flex w-full">
@@ -214,7 +215,7 @@ const MessagesPage = () => {
               <div className="p-4">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Start new chat</p>
                 {members.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-4 text-center">No other members in workspace</p>
+                  <p className="text-xs text-slate-500 py-4 text-center">No other members in project</p>
                 ) : (
                   <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
                     {members.map((m: any) => (

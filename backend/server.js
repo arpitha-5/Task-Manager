@@ -26,7 +26,6 @@ const io = socketio(server, {
   cors: {
     origin: process.env.CLIENT_URL,
     credentials: true,
-    methods: ['GET', 'POST'],
   },
 });
 

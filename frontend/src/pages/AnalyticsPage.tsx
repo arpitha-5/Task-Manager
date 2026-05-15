@@ -11,22 +11,22 @@ import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 
 const AnalyticsPage = () => {
-  const { currentWorkspace } = useAuthStore();
+  const { currentProject } = useAuthStore();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (currentWorkspace) {
+    if (currentProject) {
       fetchAnalytics();
     } else {
       setIsLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentProject]);
 
   const fetchAnalytics = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get(`/analytics/${currentWorkspace!._id}`);
+      const res = await api.get(`/analytics/${currentProject!._id}`);
       setData(res.data.data);
     } catch (err) {
       console.error('Failed to fetch analytics', err);
@@ -41,11 +41,11 @@ const AnalyticsPage = () => {
     </div>
   );
 
-  if (!currentWorkspace) return (
+  if (!currentProject) return (
     <div className="h-full flex flex-col items-center justify-center space-y-6 text-center max-w-md mx-auto">
       <BarChart3 size={40} className="text-slate-500" />
-      <h2 className="text-3xl font-black">No Workspace Selected</h2>
-      <p className="text-slate-500 font-medium">Select a workspace to view analytics.</p>
+      <h2 className="text-3xl font-black">No Project Selected</h2>
+      <p className="text-slate-500 font-medium">Select a project to view analytics.</p>
     </div>
   );
 
@@ -67,10 +67,10 @@ const AnalyticsPage = () => {
       <div>
         <div className="flex items-center gap-2 text-primary-500 font-bold text-xs uppercase tracking-[0.2em] mb-2">
           <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></div>
-          Workspace Intelligence
+          Project Intelligence
         </div>
         <h1 className="text-5xl font-black tracking-tight">Analytics</h1>
-        <p className="text-slate-500 text-lg font-medium mt-1">Real-time performance metrics for <span className="text-slate-900 font-black">{currentWorkspace?.name}</span></p>
+        <p className="text-slate-500 text-lg font-medium mt-1">Real-time performance metrics for <span className="text-slate-900 font-black">{currentProject?.name}</span></p>
       </div>
 
       {/* Stat Cards */}

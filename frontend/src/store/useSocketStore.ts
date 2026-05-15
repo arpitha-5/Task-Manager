@@ -8,14 +8,17 @@ interface SocketState {
   disconnect: () => void;
 }
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const useSocketStore = create<SocketState>((set, get) => ({
   socket: null,
   isConnected: false,
   connect: (userId) => {
     if (get().socket) return;
 
-    const socket = io('http://localhost:5000', {
+    const socket = io(API_URL, {
       withCredentials: true,
+      transports: ['websocket'],
       query: { userId }
     });
 
@@ -41,3 +44,4 @@ const useSocketStore = create<SocketState>((set, get) => ({
 }));
 
 export default useSocketStore;
+

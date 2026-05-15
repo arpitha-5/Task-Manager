@@ -6,7 +6,6 @@ import {
   Filter, 
   MoreVertical, 
   Calendar, 
-  Users, 
   Briefcase,
   ChevronRight,
   LayoutGrid,
@@ -18,8 +17,8 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const Projects = () => {
-  const { currentWorkspace } = useAuthStore();
-  const [projects, setProjects] = useState([]);
+  const { setProjects: setStoreProjects, projects: storeProjects, setCurrentProject } = useAuthStore();
+  const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
@@ -34,16 +33,15 @@ const Projects = () => {
   });
 
   useEffect(() => {
-    if (currentWorkspace) {
-      fetchProjects();
-    }
-  }, [currentWorkspace]);
+    fetchProjects();
+  }, []);
 
   const fetchProjects = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get(`/projects/workspace/${currentWorkspace._id}`);
+      const res = await api.get('/projects');
       setProjects(res.data.data);
+      setStoreProjects(res.data.data);
     } catch (err) {
       toast.error('Failed to load projects');
     } finally {
@@ -54,21 +52,23 @@ const Projects = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/projects', {
-        ...formData,
-        workspaceId: currentWorkspace._id
-      });
+      const res = await api.post('/projects', formData);
       toast.success('Project created successfully');
       setIsModalOpen(false);
       fetchProjects();
+      setFormData({ name: '', description: '', deadline: '', category: 'Engineering', color: '#3b82f6' });
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create project');
     }
   };
 
+  const handleSelectProject = (project: any) => {
+    setCurrentProject(project);
+    navigate(`/projects/${project._id}`);
+  };
+
   return (
     <div className="space-y-8 pb-20">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black tracking-tight">Projects</h1>
@@ -83,7 +83,6 @@ const Projects = () => {
         </button>
       </div>
 
-      {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 bg-slate-900/[0.03] p-1.5 rounded-2xl border border-slate-900/5">
           <button 
@@ -115,7 +114,6 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* Content */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => (
@@ -140,7 +138,7 @@ const Projects = () => {
               key={project._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              onClick={() => navigate(`/projects/${project._id}`)}
+              onClick={() => handleSelectProject(project)}
               className={`glass-card p-8 rounded-[2.5rem] border border-slate-900/5 hover:border-primary-500/30 transition-all group cursor-pointer relative overflow-hidden ${viewMode === 'list' ? 'flex items-center justify-between py-4' : ''}`}
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 blur-3xl -mr-10 -mt-10 rounded-full group-hover:bg-primary-500/10 transition-colors"></div>
@@ -150,11 +148,6 @@ const Projects = () => {
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-slate-900 shadow-lg`} style={{ backgroundColor: project.color || '#3b82f6' }}>
                     <Briefcase size={28} />
                   </div>
-                  {viewMode === 'grid' && (
-                    <button className="p-2 text-slate-500 hover:text-slate-900 transition-colors">
-                      <MoreVertical size={20} />
-                    </button>
-                  )}
                 </div>
 
                 <div className="flex-1">
@@ -166,96 +159,44 @@ const Projects = () => {
                 </div>
               </div>
 
-              {viewMode === 'grid' && (
-                <div className="pt-8 mt-8 border-t border-slate-900/5 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex -space-x-3">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className="w-8 h-8 rounded-full border-2 border-[#020617] bg-slate-100 flex items-center justify-center text-[10px] font-bold">
-                          U
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-xs font-bold text-slate-500">+12 more</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <Calendar size={14} />
-                    <span className="text-xs font-black">{new Date(project.deadline).toLocaleDateString()}</span>
-                  </div>
+              <div className={viewMode === 'grid' ? "pt-8 mt-8 border-t border-slate-900/5 flex items-center justify-between" : "flex items-center gap-8"}>
+                <div className="flex items-center gap-2 text-slate-500">
+                  <Calendar size={14} />
+                  <span className="text-xs font-black">{project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No deadline'}</span>
                 </div>
-              )}
-              
-              {viewMode === 'list' && (
-                <div className="flex items-center gap-8">
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <Calendar size={14} />
-                    <span className="text-xs font-black">{new Date(project.deadline).toLocaleDateString()}</span>
-                  </div>
-                  <ChevronRight size={20} className="text-slate-600 group-hover:translate-x-1 transition-transform" />
-                </div>
-              )}
+                {viewMode === 'list' && <ChevronRight size={20} className="text-slate-600 group-hover:translate-x-1 transition-transform" />}
+              </div>
             </motion.div>
           ))}
         </div>
       )}
 
-      {/* Create Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            ></motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-xl glass-card p-10 rounded-[2.5rem] border border-slate-900/10 shadow-2xl"
             >
               <h2 className="text-3xl font-black mb-8">Launch Initiative</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Project Name</label>
-                  <input 
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    type="text" 
-                    placeholder="e.g. Infrastructure Overhaul"
-                    className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium"
-                  />
+                  <input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} type="text" placeholder="e.g. Infrastructure Overhaul" className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium" />
                 </div>
                 <div>
                   <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Description</label>
-                  <textarea 
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    placeholder="Briefly describe the objective..."
-                    className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium h-32 resize-none"
-                  ></textarea>
+                  <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="Briefly describe the objective..." className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium h-32 resize-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Deadline</label>
-                    <input 
-                      required
-                      value={formData.deadline}
-                      onChange={(e) => setFormData({...formData, deadline: e.target.value})}
-                      type="date" 
-                      className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium"
-                    />
+                    <input required value={formData.deadline} onChange={(e) => setFormData({...formData, deadline: e.target.value})} type="date" className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium" />
                   </div>
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Category</label>
-                    <select 
-                      value={formData.category}
-                      onChange={(e) => setFormData({...formData, category: e.target.value})}
-                      className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium appearance-none"
-                    >
+                    <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full px-4 py-4 bg-slate-900/[0.03] border border-slate-900/5 rounded-2xl outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium appearance-none">
                       <option value="Engineering">Engineering</option>
                       <option value="Product">Product</option>
                       <option value="Design">Design</option>
@@ -264,19 +205,8 @@ const Projects = () => {
                   </div>
                 </div>
                 <div className="pt-4 flex gap-4">
-                  <button 
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-4 bg-slate-900/5 hover:bg-slate-900/10 rounded-2xl font-black transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    className="flex-1 py-4 btn-primary text-slate-900 rounded-2xl font-black shadow-xl shadow-primary-500/20 transition-all"
-                  >
-                    Launch Project
-                  </button>
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-900/5 hover:bg-slate-900/10 rounded-2xl font-black transition-all">Cancel</button>
+                  <button type="submit" className="flex-1 py-4 btn-primary text-slate-900 rounded-2xl font-black shadow-xl shadow-primary-500/20 transition-all">Launch Project</button>
                 </div>
               </form>
             </motion.div>

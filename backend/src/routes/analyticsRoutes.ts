@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/:workspaceId', getAnalytics);
+router.get('/:projectId', getAnalytics);
 
 export default router;

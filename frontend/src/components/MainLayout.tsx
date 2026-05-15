@@ -7,7 +7,7 @@ import AIAssistant from './AIAssistant';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MainLayout = () => {
-  const { user, currentWorkspace } = useAuthStore();
+  const { user, currentProject } = useAuthStore();
   const { connect, socket } = useSocketStore();
   const location = useLocation();
 
@@ -18,10 +18,10 @@ const MainLayout = () => {
   }, [user]);
 
   useEffect(() => {
-    if (socket && currentWorkspace) {
-      socket.emit('join_workspace', currentWorkspace._id);
+    if (socket && currentProject) {
+      socket.emit('join', currentProject._id);
     }
-  }, [socket, currentWorkspace]);
+  }, [socket, currentProject]);
 
   if (!user) {
     return <Navigate to="/login" replace />;

@@ -6,7 +6,6 @@ export interface IProject extends Document {
   status: 'Active' | 'Archived' | 'Completed';
   category?: string;
   deadline: Date;
-  workspace: mongoose.Types.ObjectId;
   owner: mongoose.Types.ObjectId;
   members: mongoose.Types.ObjectId[];
   color?: string;
@@ -28,12 +27,7 @@ const ProjectSchema: Schema = new Schema({
   category: String,
   deadline: {
     type: Date,
-    required: true,
-  },
-  workspace: {
-    type: Schema.Types.ObjectId,
-    ref: 'Workspace',
-    required: true,
+    default: Date.now,
   },
   owner: {
     type: Schema.Types.ObjectId,

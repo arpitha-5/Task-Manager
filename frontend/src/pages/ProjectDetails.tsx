@@ -6,11 +6,9 @@ import {
   MoreVertical, 
   Filter, 
   Search, 
-  Users, 
   Calendar,
   ChevronLeft,
   Clock,
-  CheckCircle2,
   AlertCircle,
   LayoutGrid,
   Hash
@@ -20,7 +18,7 @@ import api from '../services/api';
 import useSocketStore from '../store/useSocketStore';
 import toast from 'react-hot-toast';
 
-const COLUMNS = ['Backlog', 'To Do', 'In Progress', 'Review', 'Testing', 'Blocked', 'Completed'];
+const COLUMNS = ['To Do', 'In Progress', 'Review', 'Testing', 'Done'];
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -34,7 +32,7 @@ const ProjectDetails = () => {
 
   useEffect(() => {
     if (socket && id) {
-      socket.emit('join_project', id);
+      socket.emit('join', id); // Changed from join_project to join to match server.js
       socket.on('task_updated', (data: any) => {
         if (data.projectId === id) {
           setTasks(prev => prev.map(t => t._id === data.taskId ? { ...t, status: data.newStatus } : t));
@@ -62,7 +60,7 @@ const ProjectDetails = () => {
       setIsLoading(true);
       const [projRes, tasksRes] = await Promise.all([
         api.get(`/projects/${id}`),
-        api.get(`/tasks/project/${id}`)
+        api.get(`/tasks?projectId=${id}`)
       ]);
       setProject(projRes.data.data);
       setTasks(tasksRes.data.data);
@@ -86,14 +84,12 @@ const ProjectDetails = () => {
     }
 
     const updatedTasks = Array.from(tasks);
-    const movedTask = updatedTasks.find(t => t._id === draggableId);
-    if (!movedTask) return;
+    const movedTaskIndex = updatedTasks.findIndex(t => t._id === draggableId);
+    if (movedTaskIndex === -1) return;
 
-    // Update status locally
-    movedTask.status = destination.droppableId;
+    const oldStatus = updatedTasks[movedTaskIndex].status;
+    updatedTasks[movedTaskIndex].status = destination.droppableId;
     
-    // Logic for reordering within the same list would go here
-    // For now, we update the status and re-fetch or sync
     setTasks([...updatedTasks]);
 
     try {
@@ -112,7 +108,7 @@ const ProjectDetails = () => {
       await api.post('/tasks', {
         ...taskForm,
         status: newTaskStatus,
-        projectId: id
+        project: id // Backend expects 'project' instead of 'projectId'
       });
       toast.success('Task created');
       setIsTaskModalOpen(false);
@@ -142,40 +138,21 @@ const ProjectDetails = () => {
 
   return (
     <div className="h-full flex flex-col space-y-6">
-      {/* Project Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/projects')}
-            className="p-2 hover:bg-slate-900/5 rounded-xl transition-all text-slate-500"
-          >
+          <button onClick={() => navigate('/projects')} className="p-2 hover:bg-slate-900/5 rounded-xl transition-all text-slate-500">
             <ChevronLeft size={24} />
           </button>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded-md bg-primary-500/10 text-primary-500 text-[10px] font-black uppercase tracking-widest">Active Sprint</span>
+              <span className="px-2 py-0.5 rounded-md bg-primary-500/10 text-primary-500 text-[10px] font-black uppercase tracking-widest">Active</span>
               <span className="text-slate-600 font-bold text-xs">/ {project?.category}</span>
             </div>
             <h1 className="text-3xl font-black">{project?.name}</h1>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-2 mr-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="w-10 h-10 rounded-full border-2 border-[#020617] bg-slate-100 flex items-center justify-center text-xs font-bold">U</div>
-            ))}
-            <button className="w-10 h-10 rounded-full border-2 border-dashed border-slate-900/10 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-all">
-              <Plus size={16} />
-            </button>
-          </div>
-          <button className="px-5 py-2.5 bg-primary-600 hover:bg-primary-500 text-slate-900 rounded-xl font-black text-sm transition-all shadow-lg shadow-primary-500/20">
-            Sprint Settings
-          </button>
-        </div>
       </div>
 
-      {/* Toolbar */}
       <div className="flex items-center justify-between py-2 border-b border-slate-900/5">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 text-primary-500 border-b-2 border-primary-500 pb-2 px-1">
@@ -202,7 +179,6 @@ const ProjectDetails = () => {
         </div>
       </div>
 
-      {/* Kanban Board */}
       <div className="flex-1 overflow-x-auto pb-4 custom-scrollbar min-h-0">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-6 h-full">
@@ -228,25 +204,18 @@ const ProjectDetails = () => {
 
                 <Droppable droppableId={column}>
                   {(provided) => (
-                    <div
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1"
-                    >
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1">
                       {tasks
                         .filter(t => t.status === column)
                         .map((task, index) => (
                           <Draggable key={task._id} draggableId={task._id} index={index}>
                             {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
+                              <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
                                 className={`glass-card p-5 rounded-2xl border border-slate-900/5 hover:border-primary-500/30 transition-all group ${snapshot.isDragging ? 'shadow-2xl shadow-primary-500/20 border-primary-500/50 rotate-2' : ''}`}
                               >
                                 <div className="flex justify-between items-start mb-3">
                                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${
-                                    task.priority === 'Urgent' || task.priority === 'Critical' ? 'bg-red-500/10 text-red-500' :
+                                    task.priority === 'Urgent' ? 'bg-red-500/10 text-red-500' :
                                     task.priority === 'High' ? 'bg-orange-500/10 text-orange-500' :
                                     'bg-slate-500/10 text-slate-500'
                                   }`}>
@@ -262,10 +231,7 @@ const ProjectDetails = () => {
                                 <div className="flex items-center justify-between pt-3 border-t border-slate-900/5">
                                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-600 uppercase">
                                     <Calendar size={12} />
-                                    {new Date(task.dueDate).toLocaleDateString()}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-bold">U</div>
+                                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}
                                   </div>
                                 </div>
                               </div>
@@ -282,7 +248,6 @@ const ProjectDetails = () => {
         </DragDropContext>
       </div>
 
-      {/* Task Creation Modal */}
       <AnimatePresence>
         {isTaskModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

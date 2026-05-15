@@ -4,8 +4,7 @@ import {
   getTasks, 
   updateTask, 
   deleteTask,
-  reorderTasks,
-  getWorkspaceTasks
+  reorderTasks
 } from '../controllers/taskController';
 import { protect } from '../middleware/auth';
 
@@ -14,13 +13,8 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
+  .get(getTasks)
   .post(createTask);
-
-router.route('/project/:projectId')
-  .get(getTasks);
-
-router.route('/workspace/:workspaceId')
-  .get(getWorkspaceTasks);
 
 router.route('/reorder')
   .put(reorderTasks);

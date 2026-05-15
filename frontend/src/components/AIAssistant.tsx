@@ -6,7 +6,7 @@ import api from '../services/api';
 const AIAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hello! I am your TaskFlow AI assistant. How can I help you optimize your workspace today?' }
+    { role: 'assistant', content: 'Hello! I am your TaskFlow AI assistant. How can I help you optimize your projects today?' }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);

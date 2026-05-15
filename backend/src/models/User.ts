@@ -7,8 +7,6 @@ export interface IUser extends Document {
   password?: string;
   role: 'owner' | 'admin' | 'member' | 'viewer';
   profilePicture?: string;
-  workspaces: mongoose.Types.ObjectId[];
-  currentWorkspace?: mongoose.Types.ObjectId;
   refreshToken?: string;
   isEmailVerified: boolean;
   googleId?: string;
@@ -43,14 +41,6 @@ const UserSchema: Schema = new Schema({
   profilePicture: {
     type: String,
     default: 'https://ui-avatars.com/api/?name=User&background=random',
-  },
-  workspaces: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Workspace'
-  }],
-  currentWorkspace: {
-    type: Schema.Types.ObjectId,
-    ref: 'Workspace'
   },
   refreshToken: {
     type: String,

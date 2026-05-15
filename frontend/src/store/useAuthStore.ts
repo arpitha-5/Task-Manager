@@ -1,18 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, Workspace } from '../types';
+import { User, Project } from '../types';
 
 interface AuthState {
   user: User | null;
-  workspaces: Workspace[];
-  currentWorkspace: Workspace | null;
+  projects: Project[];
+  currentProject: Project | null;
   accessToken: string | null;
   loading: boolean;
   error: string | null;
   setAccessToken: (token: string) => void;
   setUser: (user: User | null) => void;
-  setWorkspaces: (workspaces: Workspace[]) => void;
-  setCurrentWorkspace: (workspace: Workspace | null) => void;
+  setProjects: (projects: Project[]) => void;
+  setCurrentProject: (project: Project | null) => void;
   logout: () => void;
 }
 
@@ -20,16 +20,16 @@ const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      workspaces: [],
-      currentWorkspace: null,
+      projects: [],
+      currentProject: null,
       accessToken: null,
       loading: false,
       error: null,
       setAccessToken: (token) => set({ accessToken: token }),
       setUser: (user) => set({ user }),
-      setWorkspaces: (workspaces) => set({ workspaces }),
-      setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
-      logout: () => set({ user: null, accessToken: null, workspaces: [], currentWorkspace: null }),
+      setProjects: (projects) => set({ projects }),
+      setCurrentProject: (project) => set({ currentProject: project }),
+      logout: () => set({ user: null, accessToken: null, projects: [], currentProject: null }),
     }),
     {
       name: 'auth-storage',

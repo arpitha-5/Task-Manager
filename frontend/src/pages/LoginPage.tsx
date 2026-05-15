@@ -62,7 +62,7 @@ const LoginPage = () => {
             <h1 className="text-4xl font-black tracking-tight mb-2">
               TASKFLOW<span className="text-slate-500"></span>
             </h1>
-            <p className="text-slate-500 font-medium">Log in to your workspace</p>
+            <p className="text-slate-500 font-medium">Log in to your account</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

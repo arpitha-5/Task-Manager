@@ -13,10 +13,8 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
+  .get(getProjects)
   .post(createProject);
-
-router.route('/workspace/:workspaceId')
-  .get(getProjects);
 
 router.route('/:id')
   .get(getProject)

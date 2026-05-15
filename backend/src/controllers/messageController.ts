@@ -2,15 +2,15 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import Conversation from '../models/Conversation';
 import Message from '../models/Message';
-import Workspace from '../models/Workspace';
+import Project from '../models/Project';
 
-// @desc    Get or create a conversation with workspace members
-// @route   GET /api/messages/conversations/:workspaceId
+// @desc    Get or create a conversation with project members
+// @route   GET /api/messages/conversations/:projectId
 // @access  Private
 export const getConversations = async (req: AuthRequest, res: Response) => {
   try {
     const conversations = await Conversation.find({
-      workspace: req.params.workspaceId,
+      project: req.params.projectId,
       participants: req.user!._id,
     })
       .populate('participants', 'name email profilePicture')
@@ -89,12 +89,12 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const createConversation = async (req: AuthRequest, res: Response) => {
   try {
-    const { participantId, workspaceId, name, isGroup } = req.body;
+    const { participantId, projectId, name, isGroup } = req.body;
 
     if (isGroup) {
       const conv = await Conversation.create({
         participants: [req.user!._id, ...(req.body.participantIds || [])],
-        workspace: workspaceId,
+        project: projectId,
         name: name || 'Group Chat',
         isGroup: true,
       });
@@ -105,7 +105,7 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
 
     // Check for existing 1-on-1
     let conv = await Conversation.findOne({
-      workspace: workspaceId,
+      project: projectId,
       isGroup: false,
       participants: { $all: [req.user!._id, participantId], $size: 2 },
     }).populate('participants', 'name email profilePicture');
@@ -116,7 +116,7 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
 
     conv = await Conversation.create({
       participants: [req.user!._id, participantId],
-      workspace: workspaceId,
+      project: projectId,
       isGroup: false,
     });
 
@@ -129,20 +129,19 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// @desc    Get workspace members for starting chats
-// @route   GET /api/messages/members/:workspaceId
+// @desc    Get project members for starting chats
+// @route   GET /api/messages/members/:projectId
 // @access  Private
 export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
   try {
-    const workspace = await Workspace.findById(req.params.workspaceId)
-      .populate('members.user', 'name email profilePicture');
+    const project = await Project.findById(req.params.projectId)
+      .populate('members', 'name email profilePicture');
 
-    if (!workspace) {
-      return res.status(404).json({ success: false, message: 'Workspace not found' });
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
     }
 
-    const members = workspace.members
-      .map((m: any) => m.user)
+    const members = (project.members as any[])
       .filter((m: any) => m && m._id.toString() !== req.user!._id.toString());
 
     res.status(200).json({ success: true, data: members });
@@ -150,3 +149,4 @@ export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+

@@ -12,8 +12,8 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/conversations/:workspaceId', getConversations);
-router.get('/members/:workspaceId', getWorkspaceMembers);
+router.get('/conversations/:projectId', getConversations);
+router.get('/members/:projectId', getWorkspaceMembers);
 router.get('/:conversationId', getMessages);
 router.post('/send', sendMessage);
 router.post('/conversation', createConversation);

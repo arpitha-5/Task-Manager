@@ -7,7 +7,6 @@ import http from 'http';
 import { Server } from 'socket.io';
 import connectDB from './config/db';
 import authRoutes from './routes/authRoutes';
-import workspaceRoutes from './routes/workspaceRoutes';
 import projectRoutes from './routes/projectRoutes';
 import taskRoutes from './routes/taskRoutes';
 import aiRoutes from './routes/aiRoutes';
@@ -26,12 +25,10 @@ connectDB();
 
 const app: Application = express();
 
-// 1. CORS - MUST BE FIRST
+// 1. CORS - PRODUCTION READY
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+  origin: process.env.CLIENT_URL,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // 2. Security & Parsers
@@ -44,15 +41,14 @@ app.use(cookieParser());
 // 3. Rate Limiting
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 mins
-  max: 5000 // Increased from 100 to 5000 to prevent 429 errors in development
+  max: 5000 
 });
 app.use('/api', limiter);
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: process.env.CLIENT_URL,
     credentials: true,
   }
 });
@@ -65,36 +61,13 @@ if (process.env.NODE_ENV === 'development') {
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  socket.on('join_workspace', (workspaceId: string) => {
-    socket.join(workspaceId);
-    console.log(`User joined workspace: ${workspaceId}`);
-  });
-
-  socket.on('join_project', (projectId: string) => {
-    socket.join(projectId);
-    console.log(`User joined project: ${projectId}`);
-  });
-
-  socket.on('join_notifications', (userId: string) => {
-    socket.join(userId);
-    console.log(`User joined notification room: ${userId}`);
+  socket.on('join', (room: string) => {
+    socket.join(room);
+    console.log(`User joined room: ${room}`);
   });
 
   socket.on('task_updated', (data: any) => {
     socket.to(data.projectId).emit('task_updated', data);
-  });
-
-  // Chat events
-  socket.on('join_conversation', (conversationId: string) => {
-    socket.join(`conv_${conversationId}`);
-  });
-
-  socket.on('typing', (data: { conversationId: string; userName: string }) => {
-    socket.to(`conv_${data.conversationId}`).emit('user_typing', data);
-  });
-
-  socket.on('stop_typing', (data: { conversationId: string }) => {
-    socket.to(`conv_${data.conversationId}`).emit('user_stop_typing', data);
   });
 
   socket.on('disconnect', () => {
@@ -107,8 +80,7 @@ app.set('io', io);
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/workspaces', workspaceRoutes);
-app.use('/api/projects', projectRoutes);
+app.use('/api/projects', projectRoutes); // Now the top level
 app.use('/api/tasks', taskRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/dashboard', dashboardRoutes);

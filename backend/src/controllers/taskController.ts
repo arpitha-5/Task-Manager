@@ -10,20 +10,25 @@ import { Server } from 'socket.io';
 // @access  Private
 export const createTask = async (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, status, priority, dueDate, projectId, assignedTo, order } = req.body;
+    const { title, description, status, priority, dueDate, project, projectId, assignedTo, order } = req.body;
+    const finalProjectId = project || projectId;
 
-    const project = await Project.findById(projectId);
-    if (!project) {
+    if (!finalProjectId) {
+       return res.status(400).json({ success: false, message: 'Please provide a project ID' });
+    }
+
+    const projectExists = await Project.findById(finalProjectId);
+    if (!projectExists) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
 
     const task = await Task.create({
       title,
       description,
-      status,
-      priority,
+      status: status || 'To Do',
+      priority: priority || 'Medium',
       dueDate,
-      project: projectId,
+      project: finalProjectId,
       createdBy: req.user!._id,
       assignedTo: assignedTo || [],
       order: order || 0
@@ -52,14 +57,32 @@ export const createTask = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// @desc    Get all tasks for a project
-// @route   GET /api/tasks/project/:projectId
+// @desc    Get tasks
+// @route   GET /api/tasks
 // @access  Private
 export const getTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const tasks = await Task.find({ project: req.params.projectId })
+    const { projectId } = req.query;
+    let query: any = {};
+
+    if (projectId) {
+      query.project = projectId;
+    } else {
+      // If no projectId, get all tasks for all projects the user is in
+      const projects = await Project.find({
+        $or: [
+          { owner: req.user!._id },
+          { members: req.user!._id }
+        ]
+      });
+      query.project = { $in: projects.map(p => p._id) };
+    }
+
+    const tasks = await Task.find(query)
       .populate('assignedTo', 'name email profilePicture')
+      .populate('project', 'name color')
       .sort('order');
+      
     res.status(200).json({ success: true, count: tasks.length, data: tasks });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -126,7 +149,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 // @access  Private
 export const reorderTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const { tasks } = req.body; // Array of { id, order, status }
+    const { tasks } = req.body; 
 
     const updatePromises = tasks.map((t: any) => 
       Task.findByIdAndUpdate(t.id, { order: t.order, status: t.status })
@@ -135,25 +158,6 @@ export const reorderTasks = async (req: AuthRequest, res: Response) => {
     await Promise.all(updatePromises);
 
     res.status(200).json({ success: true, message: 'Tasks reordered' });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @desc    Get all tasks in a workspace
-// @route   GET /api/tasks/workspace/:workspaceId
-// @access  Private
-export const getWorkspaceTasks = async (req: AuthRequest, res: Response) => {
-  try {
-    const projects = await Project.find({ workspace: req.params.workspaceId });
-    const projectIds = projects.map(p => p._id);
-
-    const tasks = await Task.find({ project: { $in: projectIds } })
-      .populate('assignedTo', 'name email profilePicture')
-      .populate('project', 'name color')
-      .sort('-createdAt');
-
-    res.status(200).json({ success: true, count: tasks.length, data: tasks });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

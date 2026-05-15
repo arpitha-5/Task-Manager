@@ -2,19 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import {
-  Plus, Search, X, Calendar, Flag, CheckSquare, MoreHorizontal,
-  Trash2, GripVertical, Clock, AlertTriangle,
+  Plus, Search, X, Calendar, CheckSquare, Trash2, Clock, AlertTriangle,
 } from 'lucide-react';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
 const COLUMNS = [
-  { id: 'Backlog', label: 'Backlog', dot: 'bg-slate-400' },
   { id: 'To Do', label: 'To Do', dot: 'bg-blue-400' },
   { id: 'In Progress', label: 'In Progress', dot: 'bg-amber-400' },
   { id: 'Review', label: 'Review', dot: 'bg-purple-400' },
-  { id: 'Completed', label: 'Done', dot: 'bg-emerald-400' },
+  { id: 'Testing', label: 'Testing', dot: 'bg-indigo-400' },
+  { id: 'Done', label: 'Done', dot: 'bg-emerald-400' },
 ];
 
 const priorityConfig: Record<string, { color: string; bg: string }> = {
@@ -22,11 +21,10 @@ const priorityConfig: Record<string, { color: string; bg: string }> = {
   Medium: { color: 'text-blue-400', bg: 'bg-blue-400/10' },
   High: { color: 'text-orange-400', bg: 'bg-orange-400/10' },
   Urgent: { color: 'text-red-400', bg: 'bg-red-400/10' },
-  Critical: { color: 'text-rose-300', bg: 'bg-rose-400/10' },
 };
 
 const TasksPage = () => {
-  const { currentWorkspace } = useAuthStore();
+  const { currentProject } = useAuthStore();
   const [tasks, setTasks] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,39 +34,42 @@ const TasksPage = () => {
 
   const [newTask, setNewTask] = useState({
     title: '', description: '', status: 'To Do', priority: 'Medium',
-    dueDate: '', projectId: '',
+    dueDate: '', project: '',
   });
 
   useEffect(() => {
-    if (currentWorkspace) { fetchTasks(); fetchProjects(); }
-    else setIsLoading(false);
-  }, [currentWorkspace]);
+    fetchTasks();
+    fetchProjects();
+  }, [currentProject]);
 
   const fetchTasks = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get(`/tasks/workspace/${currentWorkspace!._id}`);
+      const res = await api.get(currentProject ? `/tasks?projectId=${currentProject._id}` : '/tasks');
       setTasks(res.data.data);
     } catch { /* empty */ } finally { setIsLoading(false); }
   };
 
   const fetchProjects = async () => {
     try {
-      const res = await api.get(`/projects/workspace/${currentWorkspace!._id}`);
+      const res = await api.get('/projects');
       setProjects(res.data.data);
+      if (currentProject && !newTask.project) {
+        setNewTask(prev => ({ ...prev, project: currentProject._id }));
+      }
     } catch { /* empty */ }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.title || !newTask.projectId || !newTask.dueDate) {
+    if (!newTask.title || !newTask.project || !newTask.dueDate) {
       toast.error('Fill in title, project, and due date'); return;
     }
     try {
       await api.post('/tasks', newTask);
       toast.success('Task created');
       setShowModal(false);
-      setNewTask({ title: '', description: '', status: 'To Do', priority: 'Medium', dueDate: '', projectId: '' });
+      setNewTask({ title: '', description: '', status: 'To Do', priority: 'Medium', dueDate: '', project: currentProject?._id || '' });
       fetchTasks();
     } catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
   };
@@ -83,13 +84,12 @@ const TasksPage = () => {
     const { draggableId, destination } = result;
     const newStatus = destination.droppableId;
 
-    // Optimistic update
     setTasks(prev => prev.map(t => t._id === draggableId ? { ...t, status: newStatus } : t));
 
     try {
       await api.put(`/tasks/${draggableId}`, { status: newStatus });
     } catch {
-      fetchTasks(); // rollback
+      fetchTasks();
       toast.error('Failed to update');
     }
   };
@@ -106,24 +106,14 @@ const TasksPage = () => {
     </div>
   );
 
-  if (!currentWorkspace) return (
-    <div className="h-full flex flex-col items-center justify-center space-y-6 text-center max-w-md mx-auto">
-      <CheckSquare size={40} className="text-slate-500" />
-      <h2 className="text-3xl font-black">No Workspace Selected</h2>
-      <p className="text-slate-500 font-medium">Select a workspace to manage tasks.</p>
-    </div>
-  );
-
   return (
     <div className="space-y-6 pb-10">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 text-primary-500 font-bold text-xs uppercase tracking-[0.2em] mb-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></div>
-            Task Management
-          </div>
-          <h1 className="text-4xl font-black tracking-tight">Board</h1>
+          <h1 className="text-4xl font-black tracking-tight">Tasks</h1>
+          <p className="text-slate-500 font-medium">
+            {currentProject ? `Managing tasks for ${currentProject.name}` : "All tasks across projects"}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative group">
@@ -143,26 +133,19 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* Kanban Board */}
       {viewMode === 'board' ? (
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
             {COLUMNS.map(col => (
               <div key={col.id} className="w-72 shrink-0 flex flex-col">
-                {/* Column Header */}
                 <div className="flex items-center justify-between mb-3 px-1">
                   <div className="flex items-center gap-2">
                     <div className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></div>
                     <span className="text-xs font-black uppercase tracking-wider text-slate-500">{col.label}</span>
                     <span className="text-[10px] font-bold text-slate-600 bg-slate-900/5 px-2 py-0.5 rounded-md">{getColumnTasks(col.id).length}</span>
                   </div>
-                  <button onClick={() => { setNewTask({ ...newTask, status: col.id }); setShowModal(true); }}
-                    className="p-1 hover:bg-slate-900/5 rounded-lg text-slate-600 hover:text-slate-500 transition-all">
-                    <Plus size={14} />
-                  </button>
                 </div>
 
-                {/* Droppable Column */}
                 <Droppable droppableId={col.id}>
                   {(provided, snapshot) => (
                     <div
@@ -183,50 +166,31 @@ const TasksPage = () => {
                                   : 'bg-slate-900/[0.025] border-slate-900/5 hover:border-slate-900/10'
                               }`}
                             >
-                              {/* Priority + Project */}
                               <div className="flex items-center justify-between mb-2.5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${priorityConfig[task.priority]?.bg} ${priorityConfig[task.priority]?.color}`}>
-                                    {task.priority}
-                                  </span>
-                                </div>
+                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${priorityConfig[task.priority]?.bg} ${priorityConfig[task.priority]?.color}`}>
+                                  {task.priority}
+                                </span>
                                 <button onClick={(e) => { e.stopPropagation(); handleDelete(task._id); }}
                                   className="p-1 text-slate-700 hover:text-red-400 rounded opacity-0 group-hover:opacity-100 transition-all">
                                   <Trash2 size={12} />
                                 </button>
                               </div>
 
-                              {/* Title */}
-                              <h4 className={`font-bold text-sm leading-snug mb-2 ${task.status === 'Completed' ? 'line-through text-slate-500' : ''}`}>
+                              <h4 className={`font-bold text-sm leading-snug mb-2 ${task.status === 'Done' ? 'line-through text-slate-500' : ''}`}>
                                 {task.title}
                               </h4>
 
-                              {/* Meta */}
                               <div className="flex items-center justify-between mt-3">
-                                <div className="flex items-center gap-2">
-                                  {task.dueDate && (
-                                    <span className={`flex items-center gap-1 text-[10px] font-bold ${isOverdue(task.dueDate) && task.status !== 'Completed' ? 'text-red-400' : 'text-slate-500'}`}>
-                                      {isOverdue(task.dueDate) && task.status !== 'Completed' ? <AlertTriangle size={10} /> : <Clock size={10} />}
-                                      {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                    </span>
-                                  )}
-                                </div>
-                                {typeof task.project === 'object' && task.project?.name && (
-                                  <span className="text-[9px] font-bold text-slate-600 bg-slate-900/5 px-2 py-0.5 rounded-md truncate max-w-[80px]">
-                                    {task.project.name}
+                                {task.dueDate && (
+                                  <span className={`flex items-center gap-1 text-[10px] font-bold ${isOverdue(task.dueDate) && task.status !== 'Done' ? 'text-red-400' : 'text-slate-500'}`}>
+                                    {isOverdue(task.dueDate) && task.status !== 'Done' ? <AlertTriangle size={10} /> : <Clock size={10} />}
+                                    {new Date(task.dueDate).toLocaleDateString()}
                                   </span>
                                 )}
+                                <span className="text-[9px] font-bold text-slate-600 bg-slate-900/5 px-2 py-0.5 rounded-md truncate max-w-[80px]">
+                                  {task.project?.name}
+                                </span>
                               </div>
-
-                              {/* Assignees */}
-                              {task.assignedTo?.length > 0 && (
-                                <div className="flex -space-x-2 mt-3">
-                                  {task.assignedTo.slice(0, 3).map((u: any) => (
-                                    <img key={u._id} src={u.profilePicture || `https://ui-avatars.com/api/?name=${u.name}&background=random&size=24`}
-                                      alt="" className="w-6 h-6 rounded-full border-2 border-[#0f172a]" />
-                                  ))}
-                                </div>
-                              )}
                             </div>
                           )}
                         </Draggable>
@@ -240,7 +204,6 @@ const TasksPage = () => {
           </div>
         </DragDropContext>
       ) : (
-        /* List View */
         <div className="space-y-2">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -252,19 +215,18 @@ const TasksPage = () => {
               transition={{ delay: i * 0.02 }}
               className="flex items-center gap-4 p-4 bg-slate-900/[0.02] border border-slate-900/5 rounded-xl hover:border-slate-900/10 transition-all group"
             >
-              <button onClick={() => api.put(`/tasks/${task._id}`, { status: task.status === 'Completed' ? 'To Do' : 'Completed' }).then(fetchTasks)}
-                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${task.status === 'Completed' ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 hover:border-primary-500'}`}>
-                {task.status === 'Completed' && <CheckSquare size={12} className="text-slate-900" />}
+              <button onClick={() => api.put(`/tasks/${task._id}`, { status: task.status === 'Done' ? 'To Do' : 'Done' }).then(fetchTasks)}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${task.status === 'Done' ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 hover:border-primary-500'}`}>
+                {task.status === 'Done' && <CheckSquare size={12} className="text-slate-900" />}
               </button>
               <div className="flex-1 min-w-0">
-                <p className={`font-bold text-sm ${task.status === 'Completed' ? 'line-through text-slate-500' : ''}`}>{task.title}</p>
+                <p className={`font-bold text-sm ${task.status === 'Done' ? 'line-through text-slate-500' : ''}`}>{task.title}</p>
                 <div className="flex items-center gap-3 mt-1">
-                  {typeof task.project === 'object' && <span className="text-[10px] font-bold text-slate-500">{task.project.name}</span>}
-                  {task.dueDate && <span className="text-[10px] text-slate-500 font-bold">{new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                  <span className="text-[10px] font-bold text-slate-500">{task.project?.name}</span>
+                  {task.dueDate && <span className="text-[10px] text-slate-500 font-bold">{new Date(task.dueDate).toLocaleDateString()}</span>}
                 </div>
               </div>
               <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase ${priorityConfig[task.priority]?.bg} ${priorityConfig[task.priority]?.color}`}>{task.priority}</span>
-              <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-slate-900/5 text-slate-500`}>{task.status}</span>
               <button onClick={() => handleDelete(task._id)} className="p-1.5 text-slate-600 hover:text-red-400 rounded-lg opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
             </motion.div>
           ))}
@@ -300,7 +262,7 @@ const TasksPage = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Project</label>
-                    <select value={newTask.projectId} onChange={(e) => setNewTask({ ...newTask, projectId: e.target.value })} required
+                    <select value={newTask.project} onChange={(e) => setNewTask({ ...newTask, project: e.target.value })} required
                       className="w-full px-4 py-3 bg-slate-900/[0.03] border border-slate-900/5 rounded-xl outline-none text-sm font-bold">
                       <option value="">Select</option>
                       {projects.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
@@ -324,7 +286,7 @@ const TasksPage = () => {
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Priority</label>
                     <select value={newTask.priority} onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
                       className="w-full px-4 py-3 bg-slate-900/[0.03] border border-slate-900/5 rounded-xl outline-none text-sm font-bold">
-                      {['Low', 'Medium', 'High', 'Urgent', 'Critical'].map(p => <option key={p} value={p}>{p}</option>)}
+                      {['Low', 'Medium', 'High', 'Urgent'].map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </div>
                 </div>

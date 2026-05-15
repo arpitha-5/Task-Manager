@@ -12,45 +12,35 @@ import {
   Compass,
   MessageSquare,
   BarChart3,
-  Bell,
-  Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../store/useAuthStore';
 import api from '../services/api';
 
 const Sidebar = () => {
-  const { user, logout, workspaces, currentWorkspace, setWorkspaces, setCurrentWorkspace } = useAuthStore();
+  const { user, logout, projects, currentProject, setProjects, setCurrentProject } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
+  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    const fetchWorkspaces = async () => {
+    const fetchProjects = async () => {
       try {
-        const res = await api.get('/workspaces');
-        setWorkspaces(res.data.data);
-        if (!currentWorkspace && res.data.data.length > 0) {
-          // Set current workspace from user data or first one
-          const current = res.data.data.find((w: any) => w._id === user?.currentWorkspace) || res.data.data[0];
-          setCurrentWorkspace(current);
+        const res = await api.get('/projects');
+        setProjects(res.data.data);
+        if (!currentProject && res.data.data.length > 0) {
+          setCurrentProject(res.data.data[0]);
         }
       } catch (err) {
-        console.error('Failed to fetch workspaces', err);
+        console.error('Failed to fetch projects', err);
       }
     };
-    fetchWorkspaces();
+    if (user) fetchProjects();
   }, [user]);
 
-  const handleSwitchWorkspace = async (workspace: any) => {
-    try {
-      await api.put(`/workspaces/switch/${workspace._id}`);
-      setCurrentWorkspace(workspace);
-      setIsWorkspaceOpen(false);
-      window.location.reload(); // Refresh to update all project/task contexts
-    } catch (err) {
-      console.error('Failed to switch workspace', err);
-    }
+  const handleSwitchProject = (project: any) => {
+    setCurrentProject(project);
+    setIsProjectMenuOpen(false);
   };
 
   const navItems = [
@@ -68,7 +58,6 @@ const Sidebar = () => {
       animate={{ width: isCollapsed ? 88 : 280 }}
       className="h-screen glass-morphism border-r border-slate-900/5 flex flex-col z-50 sticky top-0 backdrop-blur-2xl"
     >
-      {/* Brand & Workspace Switcher Section */}
       <div className="p-4 border-b border-slate-900/5 relative">
         <div className="flex items-center justify-between mb-4">
           {!isCollapsed && (
@@ -80,7 +69,7 @@ const Sidebar = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-purple flex items-center justify-center shadow-lg shadow-primary-500/20">
                 <Compass className="text-slate-900" size={18} />
               </div>
-              <span className="text-sm font-black tracking-tight uppercase">TaskFlow <span className="text-primary-500"></span></span>
+              <span className="text-sm font-black tracking-tight uppercase">TaskFlow</span>
             </motion.div>
           )}
           <button 
@@ -91,64 +80,60 @@ const Sidebar = () => {
           </button>
         </div>
 
-        {/* Workspace Dropdown */}
         <div className="relative">
           <button 
-            onClick={() => !isCollapsed && setIsWorkspaceOpen(!isWorkspaceOpen)}
+            onClick={() => !isCollapsed && setIsProjectMenuOpen(!isProjectMenuOpen)}
             className={`w-full p-3 rounded-2xl bg-slate-900/[0.03] border border-slate-900/5 flex items-center gap-3 transition-all hover:bg-slate-900/10 group ${isCollapsed ? 'justify-center' : ''}`}
           >
             <div className="w-8 h-8 rounded-xl bg-primary-600 flex items-center justify-center text-slate-900 font-black text-sm shrink-0 shadow-lg shadow-primary-600/20">
-              {currentWorkspace?.name?.charAt(0) || 'W'}
+              {currentProject?.name?.charAt(0) || 'P'}
             </div>
             {!isCollapsed && (
               <>
                 <div className="flex-1 overflow-hidden text-left">
-                  <p className="text-xs font-black truncate">{currentWorkspace?.name || 'Loading...'}</p>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest"></p>
+                  <p className="text-xs font-black truncate">{currentProject?.name || 'Select Project'}</p>
                 </div>
-                <div className={`transition-transform duration-300 ${isWorkspaceOpen ? 'rotate-180' : ''}`}>
+                <div className={`transition-transform duration-300 ${isProjectMenuOpen ? 'rotate-180' : ''}`}>
                    <ChevronRight className="rotate-90 text-slate-500" size={14} />
                 </div>
               </>
             )}
           </button>
 
-          {/* Workspace Menu */}
           <AnimatePresence>
-            {isWorkspaceOpen && !isCollapsed && (
+            {isProjectMenuOpen && !isCollapsed && (
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 className="absolute top-full left-0 right-0 mt-2 p-2 glass-card rounded-[2rem] border border-slate-900/10 shadow-2xl z-[100] max-h-64 overflow-y-auto custom-scrollbar"
               >
-                {workspaces.map((ws) => (
+                {projects.map((p) => (
                   <button
-                    key={ws._id}
-                    onClick={() => handleSwitchWorkspace(ws)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:bg-slate-900/5 ${ws._id === currentWorkspace?._id ? 'bg-slate-900/5' : ''}`}
+                    key={p._id}
+                    onClick={() => handleSwitchProject(p)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:bg-slate-900/5 ${p._id === currentProject?._id ? 'bg-slate-900/5' : ''}`}
                   >
                     <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-900/5">
-                      {ws.name.charAt(0)}
+                      {p.name.charAt(0)}
                     </div>
                     <div className="flex-1 text-left overflow-hidden">
-                      <p className="text-xs font-black truncate">{ws.name}</p>
-                      {ws._id === currentWorkspace?._id && <p className="text-[9px] text-primary-500 font-bold uppercase tracking-widest">Active</p>}
+                      <p className="text-xs font-black truncate">{p.name}</p>
+                      {p._id === currentProject?._id && <p className="text-[9px] text-primary-500 font-bold uppercase tracking-widest">Active</p>}
                     </div>
                   </button>
                 ))}
                 <div className="h-px bg-slate-900/5 my-2"></div>
-                <button className="w-full flex items-center gap-3 p-3 rounded-xl text-primary-500 hover:bg-primary-500/10 transition-all font-black text-xs">
+                <Link to="/projects" onClick={() => setIsProjectMenuOpen(false)} className="w-full flex items-center gap-3 p-3 rounded-xl text-primary-500 hover:bg-primary-500/10 transition-all font-black text-xs">
                   <Plus size={16} />
-                  New Workspace
-                </button>
+                  Manage Projects
+                </Link>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
 
-      {/* Main Navigation */}
       <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto custom-scrollbar">
         {!isCollapsed && <p className="px-4 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Navigation</p>}
         {navItems.map((item) => {
@@ -175,15 +160,11 @@ const Sidebar = () => {
                   {item.name}
                 </motion.span>
               )}
-              {isActive && (
-                <div className="absolute right-0 top-0 bottom-0 w-1 bg-slate-900/20"></div>
-              )}
             </Link>
           );
         })}
       </nav>
 
-      {/* User Section */}
       <div className="p-4 border-t border-slate-900/5 bg-slate-900/[0.01]">
         <div className={`flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-900/5 transition-all cursor-pointer group ${isCollapsed ? 'justify-center' : ''}`}>
           <div className="relative shrink-0">
