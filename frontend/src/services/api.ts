@@ -1,49 +1,68 @@
 import axios from 'axios';
 import useAuthStore from '../store/useAuthStore';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: `${API_URL}/api`,
   withCredentials: true,
 });
 
-// Request interceptor for API calls
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().accessToken;
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor for API calls
+// Response interceptor
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
+
   async (error) => {
     const originalRequest = error.config;
 
-    // Skip token refresh for auth routes (login, register, refresh-token)
-    const isAuthRoute = originalRequest?.url?.includes('/auth/');
+    const isAuthRoute =
+      originalRequest?.url?.includes('/auth/');
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRoute
+    ) {
       originalRequest._retry = true;
+
       try {
-        const res = await axios.post('http://localhost:5000/api/auth/refresh-token', {}, { withCredentials: true });
+        const res = await axios.post(
+          `${API_URL}/api/auth/refresh-token`,
+          {},
+          { withCredentials: true }
+        );
+
         const { accessToken } = res.data;
-        useAuthStore.getState().setAccessToken(accessToken);
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+
+        useAuthStore
+          .getState()
+          .setAccessToken(accessToken);
+
+        originalRequest.headers.Authorization =
+          `Bearer ${accessToken}`;
+
         return api(originalRequest);
+
       } catch (_error) {
         useAuthStore.getState().logout();
         return Promise.reject(_error);
       }
     }
+
     return Promise.reject(error);
   }
 );
